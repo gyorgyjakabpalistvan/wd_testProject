@@ -1,0 +1,180 @@
+openapi: 3.0.3
+info:
+  title: Asset registry API
+  version: 1.0.0
+  description: Contracts and assets (N:N). The serial number belongs to the contract-asset link.
+servers:
+  - url: /api
+paths:
+  /contracts:
+    get:
+      summary: List contracts (without assets)
+      responses:
+        '200': {description: List of contracts, content: {application/json: {schema: {type: object, properties: {data: {type: array, items: {$ref: '#/components/schemas/Contract'}}}}}}}
+    post:
+      summary: Create a contract
+      requestBody: {$ref: '#/components/requestBodies/Contract'}
+      responses:
+        '201': {$ref: '#/components/responses/Contract'}
+        '422': {$ref: '#/components/responses/Error'}
+  /contracts/{contract}:
+    parameters: [{$ref: '#/components/parameters/ContractId'}]
+    get:
+      summary: Get a contract with its assets
+      responses:
+        '200': {$ref: '#/components/responses/ContractWithAssets'}
+        '404': {$ref: '#/components/responses/Error'}
+    put:
+      summary: Replace a contract
+      requestBody: {$ref: '#/components/requestBodies/Contract'}
+      responses:
+        '200': {$ref: '#/components/responses/Contract'}
+        '404': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+    patch:
+      summary: Partially update a contract
+      requestBody: {$ref: '#/components/requestBodies/Contract'}
+      responses:
+        '200': {$ref: '#/components/responses/Contract'}
+        '404': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+    delete:
+      summary: Delete a contract
+      responses:
+        '204': {description: Deleted}
+        '404': {$ref: '#/components/responses/Error'}
+  /contracts/{contract}/assets:
+    parameters: [{$ref: '#/components/parameters/ContractId'}]
+    post:
+      summary: Put an asset on a contract
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [asset_id, serial_number]
+              properties:
+                asset_id: {type: integer}
+                serial_number: {type: string}
+      responses:
+        '201': {$ref: '#/components/responses/ContractWithAssets'}
+        '404': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /contracts/{contract}/assets/{asset}:
+    parameters:
+      - {$ref: '#/components/parameters/ContractId'}
+      - {$ref: '#/components/parameters/AssetId'}
+    delete:
+      summary: Take an asset off a contract
+      responses:
+        '204': {description: Removed}
+        '404': {$ref: '#/components/responses/Error'}
+  /assets:
+    get:
+      summary: List assets
+      responses:
+        '200': {description: List of assets, content: {application/json: {schema: {type: object, properties: {data: {type: array, items: {$ref: '#/components/schemas/Asset'}}}}}}}
+    post:
+      summary: Create an asset
+      requestBody: {$ref: '#/components/requestBodies/Asset'}
+      responses:
+        '201': {$ref: '#/components/responses/Asset'}
+        '422': {$ref: '#/components/responses/Error'}
+  /assets/{asset}:
+    parameters: [{$ref: '#/components/parameters/AssetId'}]
+    get:
+      summary: Get an asset
+      responses:
+        '200': {$ref: '#/components/responses/Asset'}
+        '404': {$ref: '#/components/responses/Error'}
+    put:
+      summary: Replace an asset
+      requestBody: {$ref: '#/components/requestBodies/Asset'}
+      responses:
+        '200': {$ref: '#/components/responses/Asset'}
+        '404': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+    patch:
+      summary: Partially update an asset
+      requestBody: {$ref: '#/components/requestBodies/Asset'}
+      responses:
+        '200': {$ref: '#/components/responses/Asset'}
+        '404': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+    delete:
+      summary: Delete an asset (it is also removed from every contract)
+      responses:
+        '204': {description: Deleted}
+        '404': {$ref: '#/components/responses/Error'}
+components:
+  parameters:
+    ContractId: {name: contract, in: path, required: true, schema: {type: integer}}
+    AssetId: {name: asset, in: path, required: true, schema: {type: integer}}
+  schemas:
+    Contract:
+      type: object
+      properties:
+        id: {type: integer}
+        number: {type: string}
+        partner_name: {type: string}
+        valid_from: {type: string, format: date}
+        valid_to: {type: string, format: date, nullable: true}
+    ContractWithAssets:
+      allOf:
+        - $ref: '#/components/schemas/Contract'
+        - type: object
+          properties:
+            assets: {type: array, items: {$ref: '#/components/schemas/Asset'}}
+    Asset:
+      type: object
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        description: {type: string, nullable: true}
+        serial_number: {type: string, description: Only present when listed on a contract}
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            status: {type: integer}
+            message: {type: string}
+            errors: {type: object, additionalProperties: {type: array, items: {type: string}}}
+  requestBodies:
+    Contract:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [number, partner_name, valid_from]
+            properties:
+              number: {type: string}
+              partner_name: {type: string}
+              valid_from: {type: string, format: date}
+              valid_to: {type: string, format: date, nullable: true}
+    Asset:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [name]
+            properties:
+              name: {type: string}
+              description: {type: string, nullable: true}
+  responses:
+    Contract:
+      description: A contract
+      content: {application/json: {schema: {type: object, properties: {data: {$ref: '#/components/schemas/Contract'}}}}}
+    ContractWithAssets:
+      description: A contract with its assets
+      content: {application/json: {schema: {type: object, properties: {data: {$ref: '#/components/schemas/ContractWithAssets'}}}}}
+    Asset:
+      description: An asset
+      content: {application/json: {schema: {type: object, properties: {data: {$ref: '#/components/schemas/Asset'}}}}}
+    Error:
+      description: Error
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
